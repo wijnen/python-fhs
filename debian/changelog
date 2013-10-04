@@ -1,0 +1,5 @@
+python-xdgbasedir (0.1-1) unstable; urgency=low
+
+  * Initial release. (Closes: #XXXXXX)
+
+ -- Bas Wijnen <wijnen@debian.org>  Sat, 20 Jul 2013 02:36:23 -0400

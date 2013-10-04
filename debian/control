@@ -1,0 +1,16 @@
+Source: python-xdgbasedir
+Section: python
+Priority: optional
+Maintainer: Bas Wijnen <wijnen@debian.org>
+Build-Depends: debhelper (>= 9), python, python-support
+Standards-Version: 3.9.4
+
+Package: python-xdgbasedir
+Architecture: all
+Depends: ${misc:Depends}, ${python:Depends}
+Description: python module for using the xdg basedir specification
+ The xdg basedir specification defines locations for several files.
+ This module provides functions for accessing those files without requiring the
+ program to search the filesystem.
+ It provides a convenient way to use configuration from files, with commandline
+ override functionality.
