@@ -9,14 +9,16 @@ __all__ = (
 	########## These functions should be used. ###############
 	# Set the name of the package the main program is part of.  Default: basename of executable without extension.
 	'packagename',
+	# Save or load a config file in a standard format (defined by this module).
+	'config_save',
+	'config_load',
 	# Get filenames for reading or writing.
 	'data_filename_write',
 	'data_files_read',
 	'cache_filename_write',
 	'cache_filename_read',
-	# Save or load a config file in a standard format.
-	'save_config',
-	'load_config',
+	'runtime_filename_write',	# This must not be called if XDG_RUNTIME_DIR is not set.
+	'runtime_filename_read',	# This must not be called if XDG_RUNTIME_DIR is not set.
 
 	########## These functions and variables should most likely not be used; they are only here for completeness. ###############
 	# XDG environment variables, or their defaults.
@@ -79,8 +81,8 @@ def config_files_read (filename = None, packagename = None):
 			ret.append (p)
 	return ret
 # High level.
-def save_config (config, filename = None):
-	target = config_filename_write (filename)
+def config_save (config, filename = None, packagename = None):
+	target = config_filename_write (filename, packagename)
 	d = os.path.dirname (target)
 	if not os.path.exists (d):
 		os.makedirs (d)
@@ -89,7 +91,7 @@ def save_config (config, filename = None):
 	with open (target, 'w') as f:
 		for key in keys:
 			f.write ('%s=%s\n' % (protect (key, '='), protect (config[key])))
-def load_config (filename = None, defaults = None):
+def config_load (filename = None, packagename = None, defaults = None):
 	'''Load configuration.
 	The defaults argument should be set to a dict of possible arguments,
 	with their defaults as values.  Required argument are given a value
@@ -112,7 +114,7 @@ def load_config (filename = None, defaults = None):
 		for k in defaults:
 			if getattr (args, k) is not None:
 				ret[k] = getattr (args, k)
-	files = config_files_read (args.configfile if defaults and args.configfile else filename)
+	files = config_files_read (args.configfile if defaults and args.configfile else filename, packagename)
 	for name in files:
 		with open (name) as f:
 			for l in f.xreadlines ():
@@ -129,7 +131,7 @@ def load_config (filename = None, defaults = None):
 					sys.exit (1)
 				ret[k] = defaults[k]
 		if args.saveconfig != False:
-			save_config (ret, args.saveconfig)
+			config_save (ret, args.saveconfig, packagename)
 	return ret
 
 XDG_DATA_HOME = os.getenv ('XDG_DATA_HOME', os.path.join (HOME, '.local', 'share'))
@@ -170,5 +172,22 @@ def cache_filename_read (filename = None, packagename = None):
 	return None
 
 XDG_RUNTIME_DIR = os.getenv ('XDG_RUNTIME_DIR')
-# This is too complex for anything; there is not even a default to fall back to.
-# Also, this is only used by singleton servers; they should know what to do.
+# Low level only; high level is too application-specific.
+def runtime_filename_write (filename = None, makedirs = True, packagename = None):
+	assert XDG_RUNTIME_DIR
+	if filename is None:
+		filename = (packagename or pname)
+	target = os.path.join (XDG_RUNTIME_DIR, (packagename or pname), filename)
+	if makedirs:
+		d = os.path.dirname (target)
+		if not os.path.exists (d):
+			os.makedirs (d)
+	return target
+def runtime_filename_read (filename = None, packagename = None):
+	assert XDG_RUNTIME_DIR
+	if filename is None:
+		filename = (packagename or pname)
+	p = os.path.join (XDG_RUNTIME_DIR, (packagename or pname), filename)
+	if os.path.exists (p):
+		return p
+	return None
