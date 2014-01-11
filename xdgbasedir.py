@@ -91,7 +91,7 @@ def config_save (config, filename = None, packagename = None):
 	with open (target, 'w') as f:
 		for key in keys:
 			f.write ('%s=%s\n' % (protect (key, '='), protect (config[key])))
-def config_load (filename = None, packagename = None, defaults = None):
+def config_load (filename = None, packagename = None, defaults = None, argv = None):
 	'''Load configuration.
 	The defaults argument should be set to a dict of possible arguments,
 	with their defaults as values.  Required argument are given a value
@@ -99,10 +99,10 @@ def config_load (filename = None, packagename = None, defaults = None):
 	ret = {}
 	if defaults:
 		# Allow overriding values from the commandline; require them if the default is set to None.
-		import argparse
-		a = argparse.ArgumentParser ()
 		assert 'configfile' not in defaults
 		assert 'saveconfig' not in defaults
+		import argparse
+		a = argparse.ArgumentParser ()
 		a.add_argument ('--configfile')
 		a.add_argument ('--saveconfig', nargs = '?', default = False)
 		for k in defaults:
@@ -110,10 +110,10 @@ def config_load (filename = None, packagename = None, defaults = None):
 				a.add_argument ('--' + k, help = 'required if not in config file')
 			else:
 				a.add_argument ('--' + k, help = 'default: %s' % defaults[k])
-		args = a.parse_args ()
+		args = a.parse_args (argv)
 		for k in defaults:
-			if getattr (args, k) is not None:
-				ret[k] = getattr (args, k)
+			if getattr (args, k.replace ('-', '_')) is not None:
+				ret[k] = getattr (args, k.replace ('-', '_'))
 	files = config_files_read (args.configfile if defaults and args.configfile else filename, packagename)
 	for name in files:
 		with open (name) as f:
@@ -131,7 +131,7 @@ def config_load (filename = None, packagename = None, defaults = None):
 					sys.exit (1)
 				ret[k] = defaults[k]
 		if args.saveconfig != False:
-			config_save (ret, args.saveconfig, packagename)
+			config_save (ret, args.configfile if defaults and args.configfile else filename, packagename)
 	return ret
 
 XDG_DATA_HOME = os.getenv ('XDG_DATA_HOME', os.path.join (HOME, '.local', 'share'))
