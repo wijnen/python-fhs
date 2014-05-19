@@ -138,11 +138,11 @@ XDG_DATA_HOME = os.getenv ('XDG_DATA_HOME', os.path.join (HOME, '.local', 'share
 XDG_DATA_DIRS = tuple ([XDG_DATA_HOME] + os.getenv ('XDG_DATA_DIRS', '/usr/local/share:/usr/share').split (':'))
 # Low level only; high level is too application-specific.
 def data_filename_write (filename, makedirs = True, packagename = None):
-	targetdir = os.path.join (XDG_DATA_HOME, (packagename or pname))
-	target = os.path.join (targetdir, filename)
+	target = os.path.join (XDG_DATA_HOME, (packagename or pname), filename)
 	if makedirs:
-		if not os.path.exists (targetdir):
-			os.makedirs (targetdir)
+		dirname = os.path.dirname (target)
+		if not os.path.exists (dirname):
+			os.makedirs (dirname)
 	return target
 def data_files_read (filename, packagename = None):
 	ret = []
