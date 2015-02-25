@@ -2,10 +2,10 @@
 
 import distutils.core
 distutils.core.setup (
-		name = 'xdgbasedir',
-		py_modules = ['xdgbasedir'],
+		name = 'fhs',
+		py_modules = ['fhs'],
 		version = '0.1',
-		description = 'xdg basedir utility',
+		description = 'Use FHS and XDG basedir paths',
 		author = 'Bas Wijnen',
 		author_email = 'wijnen@debian.org',
 		)

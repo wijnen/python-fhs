@@ -1,26 +1,26 @@
-Source: python-xdgbasedir
+Source: python-fhs
 Section: python
 Priority: optional
 Maintainer: Bas Wijnen <wijnen@debian.org>
 Build-Depends: debhelper (>= 9), python-all, python3-all, dh-python
-Standards-Version: 3.9.5
+Standards-Version: 3.9.6
 
-Package: python-xdgbasedir
+Package: python-fhs
 Architecture: all
 Depends: ${misc:Depends}, ${python:Depends}
-Description: python module for using the xdg basedir specification
- The xdg basedir specification defines locations for several files.
+Description: python module for using the FHS and XDG basedir paths.
+ The FHS and XDG basedir specification defines locations for several files.
  This module provides functions for accessing those files without requiring the
- program to search the filesystem.
+ program to search the filesystem itself.
  It provides a convenient way to use configuration from files, with commandline
  override functionality.
 
-Package: python3-xdgbasedir
+Package: python3-fhs
 Architecture: all
 Depends: ${misc:Depends}, ${python3:Depends}
-Description: python module for using the xdg basedir specification
- The xdg basedir specification defines locations for several files.
+Description: python module for using the FHS and XDG basedir paths.
+ The FHS and XDG basedir specification defines locations for several files.
  This module provides functions for accessing those files without requiring the
- program to search the filesystem.
+ program to search the filesystem itself.
  It provides a convenient way to use configuration from files, with commandline
  override functionality.

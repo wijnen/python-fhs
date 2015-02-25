@@ -1,7 +1,7 @@
 Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: python-xdgbasedir
+Upstream-Name: python-fhs
 Upstream-Contact: Bas Wijnen <wijnen@debian.org>
-Source: https://github.com/wijnen/python-xdgbasedir
+Source: https://github.com/wijnen/python-fhs
 
 Files: *
 Copyright: Copyright 2012 Bas Wijnen <wijnen@debian.org>
