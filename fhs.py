@@ -168,9 +168,9 @@ def init(config, packagename = None, system = None, argv = None):	# {{{
 		save_config(ret, args.configfile if config and args.configfile else filename, packagename)
 	global is_system
 	if argv is None:
-		if args.system:
-			is_system = True
-		elif system is not None:
+		if system is None:
+			is_system = args.system
+		else:
 			is_system = system
 	return ret
 # }}}
