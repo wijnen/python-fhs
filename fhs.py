@@ -50,6 +50,7 @@ import sys
 import shutil
 import argparse
 import tempfile
+import atexit
 # }}}
 
 # Globals. {{{
@@ -81,7 +82,9 @@ __all__ = ( # {{{
 	'write_log',
 	# Spoolfile
 	'write_spool',
-	'read_spool'
+	'read_spool',
+	# Whether we are running as a system service.
+	'is_system'
 	)
 # }}}
 
@@ -134,7 +137,7 @@ def init(config, packagename = None, system = None, argv = None):	# {{{
 	a.add_argument('--configfile', help = 'default: ' + (packagename or pname) + os.extsep + 'ini')
 	a.add_argument('--saveconfig', nargs = '?', default = False)
 	if system is None:
-		a.add_argument('--system', nargs = 0, default = False)
+		a.add_argument('--system', action = 'store_true')
 	for k in config:
 		if config[k] is None:
 			a.add_argument('--' + k, help = 'required if not in config file')
@@ -145,7 +148,6 @@ def init(config, packagename = None, system = None, argv = None):	# {{{
 		if getattr(args, k.replace('-', '_')) is not None:
 			ret[k] = getattr(args, k.replace('-', '_'))
 	filename = args.configfile if args.configfile else (packagename or pname) + os.extsep + 'ini'
-	ret = []
 	for d in XDG_CONFIG_DIRS:
 		p = os.path.join(d, (packagename or pname), filename)
 		if os.path.exists(p):
@@ -237,15 +239,15 @@ def write_temp(dir = False, text = True, packagename = None):
 # Data files. {{{
 XDG_DATA_HOME = os.getenv('XDG_DATA_HOME', os.path.join(HOME, '.local', 'share'))
 XDG_DATA_DIRS = os.getenv('XDG_DATA_DIRS', '/usr/local/share:/usr/share').split(':')
-def write_data(name, text = True, dir = False, opened = True, packagename = None):
+def write_data(name = None, text = True, dir = False, opened = True, packagename = None):
 	if name is None:
 		if dir:
 			filename = packagename or pname
 		else:
 			filename = (packagename or pname) + os.extsep + 'dat'
 	else:
-		filename = name if system else os.path.join(packagename or pname, name)
-	d = os.path.join('/var/lib', packagename or pname) if system else XDG_DATA_HOME
+		filename = name if is_system else os.path.join(packagename or pname, name)
+	d = os.path.join('/var/lib', packagename or pname) if is_system else XDG_DATA_HOME
 	target = os.path.join(d, filename)
 	if dir:
 		if opened and not os.path.exists(target):
@@ -257,7 +259,7 @@ def write_data(name, text = True, dir = False, opened = True, packagename = None
 			os.makedirs(d)
 		return open(target, 'r+' if text else 'rb+') if opened else target
 
-def read_data(name, text = True, dir = False, multiple = False, opened = True, packagename = None):
+def read_data(name = None, text = True, dir = False, multiple = False, opened = True, packagename = None):
 	if name is None:
 		if dir:
 			filename = packagename or pname
@@ -266,15 +268,19 @@ def read_data(name, text = True, dir = False, multiple = False, opened = True, p
 	else:
 		filename = os.path.join(packagename or pname, name)
 	target = []
-	t = os.path.join(XDG_DATA_HOME, filename)
-	if os.path.exists(t):
-		r = t if dir or not opened else open(t, 'r' if text else 'rb')
-		if not multiple:
-			return r
-		target.append(r)
+	if not is_system:
+		t = os.path.join(XDG_DATA_HOME, filename)
+		if os.path.exists(t):
+			r = t if dir or not opened else open(t, 'r' if text else 'rb')
+			if not multiple:
+				return r
+			target.append(r)
 	if name is None:
 		filename = os.path.join(packagename or pname, packagename or pname + os.extsep + 'dat')
-	for d in ['/var/local/lib', '/var/lib'] + XDG_DATA_DIRS:
+	dirs = ['/var/local/lib', '/var/lib', '/usr/local/lib', '/usr/lib']
+	if not is_system:
+		dirs = XDG_DATA_DIRS + dirs
+	for d in dirs:
 		t = os.path.join(d, filename)
 		if os.path.exists(t):
 			r = t if dir or not opened else open(t, 'r' if text else 'rb')
@@ -289,15 +295,15 @@ def read_data(name, text = True, dir = False, multiple = False, opened = True, p
 
 # Cache files. {{{
 XDG_CACHE_HOME = os.getenv('XDG_CACHE_HOME', os.path.join(HOME, '.cache'))
-def write_cache(name, text = True, dir = False, opened = True, packagename = None):
+def write_cache(name = None, text = True, dir = False, opened = True, packagename = None):
 	if name is None:
 		if dir:
 			filename = packagename or pname
 		else:
 			filename = (packagename or pname) + os.extsep + 'dat'
 	else:
-		filename = name if system else os.path.join(packagename or pname, name)
-	d = os.path.join('/var/cache', packagename or pname) if system else XDG_CACHE_HOME
+		filename = name if is_system else os.path.join(packagename or pname, name)
+	d = os.path.join('/var/cache', packagename or pname) if is_system else XDG_CACHE_HOME
 	target = os.path.join(d, filename)
 	if dir:
 		if opened and not os.path.exists(target):
@@ -309,7 +315,7 @@ def write_cache(name, text = True, dir = False, opened = True, packagename = Non
 			os.makedirs(d)
 		return open(target, 'r+' if text else 'rb+') if opened and not dir else target
 
-def read_cache(name, text = True, dir = False, opened = True, packagename = None):
+def read_cache(name = None, text = True, dir = False, opened = True, packagename = None):
 	if name is None:
 		if dir:
 			filename = packagename or pname
@@ -329,7 +335,9 @@ def read_cache(name, text = True, dir = False, opened = True, packagename = None
 # }}}
 
 # Log files. {{{
-def write_log(name, packagename = None):
+def write_log(name = None, packagename = None):
+	if not is_system:
+		return sys.stderr
 	if name is None:
 		filename = (packagename or pname) + os.extsep + 'log'
 	else:
@@ -342,7 +350,7 @@ def write_log(name, packagename = None):
 # }}}
 
 # Spool files. {{{
-def write_spool(name, text = True, dir = False, opened = True, packagename = None):
+def write_spool(name = None, text = True, dir = False, opened = True, packagename = None):
 	assert is_system
 	if name is None:
 		if dir:
@@ -357,7 +365,7 @@ def write_spool(name, text = True, dir = False, opened = True, packagename = Non
 		os.makedirs(d)
 	return open(target, 'r+' if text else 'rb+') if opened and not dir else target
 
-def read_spool(name, text = True, dir = False, opened = True, packagename = None):
+def read_spool(name = None, text = True, dir = False, opened = True, packagename = None):
 	if name is None:
 		if dir:
 			filename = packagename or pname
