@@ -55,6 +55,7 @@ import atexit
 
 # Globals. {{{
 is_system = False
+is_game = False
 pname = os.getenv('PACKAGE_NAME', os.path.basename(sys.argv[0]))
 HOME = os.path.expanduser('~')
 # }}}
@@ -117,7 +118,7 @@ def unprotect(data):
 	return ret
 # }}}
 
-def init(config, packagename = None, system = None, argv = None):	# {{{
+def init(config, packagename = None, system = None, game = False, argv = None):	# {{{
 	'''Initialize the module.
 	The config argument should be set to a dict of possible arguments,
 	with their defaults as values.  Required arguments are given a value of None.
@@ -127,6 +128,8 @@ def init(config, packagename = None, system = None, argv = None):	# {{{
 	global pname
 	if argv is None and packagename is not None:
 		pname = packagename
+	global is_game
+	is_game = game
 	ret = {}
 	# Allow overriding values from the commandline; require them if the default is set to None.
 	assert 'configfile' not in config
@@ -212,7 +215,7 @@ def write_runtime(name = None, text = True, dir = False, opened = True, packagen
 	d, target = runtime_get(name, packagename, dir)
 	if opened and not os.path.exists(d):
 		os.makedirs(d)
-	return open(target, 'r+' if text else 'rb+') if opened and not dir else target
+	return open(target, 'w+' if text else 'w+b') if opened and not dir else target
 
 def read_runtime(name = None, text = True, dir = False, opened = True, packagename = None):
 	d, target = runtime_get(name, packagename, dir)
@@ -228,7 +231,7 @@ def write_temp(dir = False, text = True, packagename = None):
 		clean = ret
 	else:
 		ret = tempfile.mkstemp(text = text, prefix = (packagename or pname) + '-')
-		ret = [os.fdopen(ret[0], 'r+' if text else 'rb+'), ret[1]]
+		ret = [os.fdopen(ret[0], 'w+' if text else 'w+b'), ret[1]]
 		clean = ret[1]
 	@atexit.register
 	def cleanup():
@@ -247,7 +250,13 @@ def write_data(name = None, text = True, dir = False, opened = True, packagename
 			filename = (packagename or pname) + os.extsep + 'dat'
 	else:
 		filename = name if is_system else os.path.join(packagename or pname, name)
-	d = os.path.join('/var/lib', packagename or pname) if is_system else XDG_DATA_HOME
+	if is_system:
+		if is_game:
+			d = os.path.join('/var/games', packagename or pname)
+		else:
+			d = os.path.join('/var/lib', packagename or pname)
+	else:
+		d = XDG_DATA_HOME
 	target = os.path.join(d, filename)
 	if dir:
 		if opened and not os.path.exists(target):
@@ -257,7 +266,7 @@ def write_data(name = None, text = True, dir = False, opened = True, packagename
 		d = os.path.dirname(target)
 		if opened and not os.path.exists(d):
 			os.makedirs(d)
-		return open(target, 'r+' if text else 'rb+') if opened else target
+		return open(target, 'w+' if text else 'w+b') if opened else target
 
 def read_data(name = None, text = True, dir = False, multiple = False, opened = True, packagename = None):
 	if name is None:
@@ -278,6 +287,8 @@ def read_data(name = None, text = True, dir = False, multiple = False, opened = 
 	if name is None:
 		filename = os.path.join(packagename or pname, packagename or pname + os.extsep + 'dat')
 	dirs = ['/var/local/lib', '/var/lib', '/usr/local/lib', '/usr/lib']
+	if is_game:
+		dirs = ['/var/local/games', '/var/games', '/usr/local/lib/games', '/usr/lib/games', '/usr/local/share/games', '/usr/share/games'] + dirs
 	if not is_system:
 		dirs = XDG_DATA_DIRS + dirs
 	for d in dirs:
@@ -313,7 +324,7 @@ def write_cache(name = None, text = True, dir = False, opened = True, packagenam
 		d = os.path.dirname(target)
 		if opened and not os.path.exists(d):
 			os.makedirs(d)
-		return open(target, 'r+' if text else 'rb+') if opened and not dir else target
+		return open(target, 'w+' if text else 'w+b') if opened and not dir else target
 
 def read_cache(name = None, text = True, dir = False, opened = True, packagename = None):
 	if name is None:
@@ -363,9 +374,10 @@ def write_spool(name = None, text = True, dir = False, opened = True, packagenam
 	d = os.path.dirname(target)
 	if opened and not os.path.exists(d):
 		os.makedirs(d)
-	return open(target, 'r+' if text else 'rb+') if opened and not dir else target
+	return open(target, 'w+' if text else 'w+b') if opened and not dir else target
 
 def read_spool(name = None, text = True, dir = False, opened = True, packagename = None):
+	assert is_system
 	if name is None:
 		if dir:
 			filename = packagename or pname
