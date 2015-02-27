@@ -54,6 +54,7 @@ import atexit
 # }}}
 
 # Globals. {{{
+initialized = False
 is_system = False
 is_game = False
 pname = os.getenv('PACKAGE_NAME', os.path.basename(sys.argv[0]))
@@ -175,10 +176,13 @@ def init(config, packagename = None, system = None, game = False, argv = None):	
 			is_system = args.system
 		else:
 			is_system = system
+	global initialized
+	initialized = True
 	return ret
 # }}}
 
 def save_config(config, name = None, packagename = None):	# {{{
+	assert initialized
 	if name is None:
 		filename = (packagename or pname) + os.extsep + 'ini'
 	else:
@@ -199,6 +203,7 @@ def save_config(config, name = None, packagename = None):	# {{{
 # Runtime files. {{{
 XDG_RUNTIME_DIR = os.getenv('XDG_RUNTIME_DIR')
 def runtime_get(name, packagename, dir):
+	assert initialized
 	if name is None:
 		if dir:
 			name = packagename or pname
@@ -226,6 +231,7 @@ def read_runtime(name = None, text = True, dir = False, opened = True, packagena
 
 # Temp files. {{{
 def write_temp(dir = False, text = True, packagename = None):
+	assert initialized
 	if dir:
 		ret = tempfile.mkdtemp(prefix = (packagename or pname) + '-')
 		clean = ret
@@ -243,6 +249,7 @@ def write_temp(dir = False, text = True, packagename = None):
 XDG_DATA_HOME = os.getenv('XDG_DATA_HOME', os.path.join(HOME, '.local', 'share'))
 XDG_DATA_DIRS = os.getenv('XDG_DATA_DIRS', '/usr/local/share:/usr/share').split(':')
 def write_data(name = None, text = True, dir = False, opened = True, packagename = None):
+	assert initialized
 	if name is None:
 		if dir:
 			filename = packagename or pname
@@ -252,9 +259,15 @@ def write_data(name = None, text = True, dir = False, opened = True, packagename
 		filename = name if is_system else os.path.join(packagename or pname, name)
 	if is_system:
 		if is_game:
-			d = os.path.join('/var/games', packagename or pname)
+			if packagename and packagename != pname:
+				d = os.path.join('/var/games', pname, packagename)
+			else:
+				d = os.path.join('/var/games', pname)
 		else:
-			d = os.path.join('/var/lib', packagename or pname)
+			if packagename and packagename != pname:
+				d = os.path.join('/var/lib', pname, packagename)
+			else:
+				d = os.path.join('/var/lib', pname)
 	else:
 		d = XDG_DATA_HOME
 	target = os.path.join(d, filename)
@@ -269,6 +282,7 @@ def write_data(name = None, text = True, dir = False, opened = True, packagename
 		return open(target, 'w+' if text else 'w+b') if opened else target
 
 def read_data(name = None, text = True, dir = False, multiple = False, opened = True, packagename = None):
+	assert initialized
 	if name is None:
 		if dir:
 			filename = packagename or pname
@@ -285,12 +299,21 @@ def read_data(name = None, text = True, dir = False, multiple = False, opened = 
 				return r
 			target.append(r)
 	if name is None:
-		filename = os.path.join(packagename or pname, packagename or pname + os.extsep + 'dat')
+		if dir:
+			filename = packagename or pname
+		else:
+			filename = packagename or pname + os.extsep + 'dat'
+	else:
+		filename = name
 	dirs = ['/var/local/lib', '/var/lib', '/usr/local/lib', '/usr/lib']
 	if is_game:
 		dirs = ['/var/local/games', '/var/games', '/usr/local/lib/games', '/usr/lib/games', '/usr/local/share/games', '/usr/share/games'] + dirs
+	if packagename and packagename != pname:
+		dirs = [os.path.join(x, pname, packagename) for x in dirs]
+	else:
+		dirs = [os.path.join(x, pname) for x in dirs]
 	if not is_system:
-		dirs = XDG_DATA_DIRS + dirs
+		dirs = [os.path.join(x, packagename or pname) for x in XDG_DATA_DIRS] + dirs
 	for d in dirs:
 		t = os.path.join(d, filename)
 		if os.path.exists(t):
@@ -307,6 +330,7 @@ def read_data(name = None, text = True, dir = False, multiple = False, opened = 
 # Cache files. {{{
 XDG_CACHE_HOME = os.getenv('XDG_CACHE_HOME', os.path.join(HOME, '.cache'))
 def write_cache(name = None, text = True, dir = False, opened = True, packagename = None):
+	assert initialized
 	if name is None:
 		if dir:
 			filename = packagename or pname
@@ -327,6 +351,7 @@ def write_cache(name = None, text = True, dir = False, opened = True, packagenam
 		return open(target, 'w+' if text else 'w+b') if opened and not dir else target
 
 def read_cache(name = None, text = True, dir = False, opened = True, packagename = None):
+	assert initialized
 	if name is None:
 		if dir:
 			filename = packagename or pname
@@ -347,6 +372,7 @@ def read_cache(name = None, text = True, dir = False, opened = True, packagename
 
 # Log files. {{{
 def write_log(name = None, packagename = None):
+	assert initialized
 	if not is_system:
 		return sys.stderr
 	if name is None:
@@ -362,6 +388,7 @@ def write_log(name = None, packagename = None):
 
 # Spool files. {{{
 def write_spool(name = None, text = True, dir = False, opened = True, packagename = None):
+	assert initialized
 	assert is_system
 	if name is None:
 		if dir:
@@ -377,6 +404,7 @@ def write_spool(name = None, text = True, dir = False, opened = True, packagenam
 	return open(target, 'w+' if text else 'w+b') if opened and not dir else target
 
 def read_spool(name = None, text = True, dir = False, opened = True, packagename = None):
+	assert initialized
 	assert is_system
 	if name is None:
 		if dir:
@@ -393,10 +421,12 @@ def read_spool(name = None, text = True, dir = False, opened = True, packagename
 
 # Locks. {{{
 def lock(name = None, info = '', packagename = None):
+	assert initialized
 	assert is_system
 	# TODO
 
 def unlock(name = None, packagename = None):
+	assert initialized
 	assert is_system
 	# TODO
 # }}}
