@@ -59,6 +59,7 @@ is_system = False
 is_game = False
 pname = os.getenv('PACKAGE_NAME', os.path.basename(sys.argv[0]))
 HOME = os.path.expanduser('~')
+tempfiles = []
 # }}}
 
 __all__ = ( # {{{
@@ -178,6 +179,10 @@ def init(config, packagename = None, system = None, game = False, argv = None):	
 			is_system = system
 	global initialized
 	initialized = True
+	@atexit.register
+	def clean_temps():
+		for f in tempfiles:
+			shutil.rmtree(f, ignore_errors = True)
 	return ret
 # }}}
 
@@ -227,22 +232,52 @@ def read_runtime(name = None, text = True, dir = False, opened = True, packagena
 	if os.path.exists(target):
 		return open(target, 'r' if text else 'rb') if opened and not dir else target
 	return None
+
+def remove_runtime(name = None, dir = False, packagename = None):
+	assert initialized
+	if dir:
+		shutil.rmtree(read_runtime(name, False, True, False, packagename), ignore_errors = False)
+	else:
+		os.unlink(read_runtime(name, False, False, False, packagename))
 # }}}
 
 # Temp files. {{{
+class TempFile:
+	def __init__(self, f, name):
+		# Avoid calling file.__setattr__.
+		object.__setattr__(self, '_file', f)
+		object.__setattr__(self, 'filename', name)
+	def remove(self):
+		assert initialized
+		self.close()
+		os.unlink(self.filename)
+		tempfiles.remove(self.filename)
+	def __getattr__(self, k):
+		return getattr(self._file, k)
+	def __setattr__(self, k, v):
+		return setattr(self._file, k, v)
+	def __enter__(self):
+		pass
+	def __exit__(self, exc_type, exc_value, traceback):
+		self.remove()
+		return False
+
 def write_temp(dir = False, text = True, packagename = None):
 	assert initialized
 	if dir:
 		ret = tempfile.mkdtemp(prefix = (packagename or pname) + '-')
-		clean = ret
+		tempfiles.append(ret)
 	else:
-		ret = tempfile.mkstemp(text = text, prefix = (packagename or pname) + '-')
-		ret = [os.fdopen(ret[0], 'w+' if text else 'w+b'), ret[1]]
-		clean = ret[1]
-	@atexit.register
-	def cleanup():
-		shutil.rmtree(clean, ignore_errors = True)
+		f = tempfile.mkstemp(text = text, prefix = (packagename or pname) + '-')
+		tempfiles.append(f[1])
+		ret = TempFile(os.fdopen(f[0], 'w+' if text else 'w+b'), f[1])
 	return ret
+
+def remove_temp(name):
+	assert initialized
+	assert name in tempfiles
+	tempfiles.remove(name)
+	shutil.rmtree(name, ignore_errors = False)
 # }}}
 
 # Data files. {{{
@@ -325,6 +360,13 @@ def read_data(name = None, text = True, dir = False, multiple = False, opened = 
 		return target
 	else:
 		return None
+
+def remove_data(name = None, dir = False, packagename = None):
+	assert initialized
+	if dir:
+		shutil.rmtree(read_data(name, False, True, False, False, packagename), ignore_errors = False)
+	else:
+		os.unlink(read_data(name, False, False, False, False, packagename))
 # }}}
 
 # Cache files. {{{
@@ -368,6 +410,13 @@ def read_cache(name = None, text = True, dir = False, opened = True, packagename
 		if not os.path.exists(target):
 			return None
 	return open(target, 'r' if text else 'rb') if opened and not dir else target
+
+def remove_cache(name = None, dir = False, packagename = None):
+	assert initialized
+	if dir:
+		shutil.rmtree(read_cache(name, False, True, False, packagename), ignore_errors = False)
+	else:
+		os.unlink(read_cache(name, False, False, False, packagename))
 # }}}
 
 # Log files. {{{
@@ -389,7 +438,6 @@ def write_log(name = None, packagename = None):
 # Spool files. {{{
 def write_spool(name = None, text = True, dir = False, opened = True, packagename = None):
 	assert initialized
-	assert is_system
 	if name is None:
 		if dir:
 			filename = packagename or pname
@@ -397,7 +445,7 @@ def write_spool(name = None, text = True, dir = False, opened = True, packagenam
 			filename = (packagename or pname) + os.extsep + 'dat'
 	else:
 		filename = os.path.join(packagename or pname, name)
-	target = os.path.join('/var/spool', filename)
+	target = os.path.join('/var/spool' if is_system else os.path.join(XDG_CACHE_HOME, 'spool'), filename)
 	d = os.path.dirname(target)
 	if opened and not os.path.exists(d):
 		os.makedirs(d)
@@ -405,7 +453,6 @@ def write_spool(name = None, text = True, dir = False, opened = True, packagenam
 
 def read_spool(name = None, text = True, dir = False, opened = True, packagename = None):
 	assert initialized
-	assert is_system
 	if name is None:
 		if dir:
 			filename = packagename or pname
@@ -413,20 +460,31 @@ def read_spool(name = None, text = True, dir = False, opened = True, packagename
 			filename = (packagename or pname) + os.extsep + 'dat'
 	else:
 		filename = os.path.join(packagename or pname, name)
-	target = os.path.join('/var/spool', filename)
+	target = os.path.join('/var/spool' if is_system else os.path.join(XDG_CACHE_HOME, 'spool'), filename)
 	if not os.path.exists(target):
 		return None
 	return open(target, 'r' if text else 'rb') if opened and not dir else target
+
+def remove_sppol(name = None, dir = False, packagename = None):
+	assert initialized
+	if name is None:
+		if dir:
+			filename = packagename or pname
+		else:
+			filename = (packagename or pname) + os.extsep + 'dat'
+	target = os.path.join('/var/spool' if is_system else os.path.join(XDG_CACHE_HOME, 'spool'), filename)
+	if dir:
+		shutil.rmtree(read_spool(name, False, True, False, packagename), ignore_errors = False)
+	else:
+		os.unlink(read_spool(name, False, False, False, packagename))
 # }}}
 
 # Locks. {{{
 def lock(name = None, info = '', packagename = None):
 	assert initialized
-	assert is_system
 	# TODO
 
 def unlock(name = None, packagename = None):
 	assert initialized
-	assert is_system
 	# TODO
 # }}}
