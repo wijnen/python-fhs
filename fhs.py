@@ -325,13 +325,15 @@ def read_data(name = None, text = True, dir = False, multiple = False, opened = 
 			filename = (packagename or pname) + os.extsep + 'dat'
 	else:
 		filename = os.path.join(packagename or pname, name)
+	seen = set()
 	target = []
 	if not is_system:
 		t = os.path.join(XDG_DATA_HOME, filename)
-		if os.path.exists(t):
+		if t not in seen and os.path.exists(t):
 			r = t if dir or not opened else open(t, 'r' if text else 'rb')
 			if not multiple:
 				return r
+			seen.add(t)
 			target.append(r)
 	if name is None:
 		if dir:
@@ -340,7 +342,7 @@ def read_data(name = None, text = True, dir = False, multiple = False, opened = 
 			filename = packagename or pname + os.extsep + 'dat'
 	else:
 		filename = name
-	dirs = ['/var/local/lib', '/var/lib', '/usr/local/lib', '/usr/lib']
+	dirs = ['/var/local/lib', '/var/lib', '/usr/local/lib', '/usr/lib', '/usr/local/share', '/usr/share']
 	if is_game:
 		dirs = ['/var/local/games', '/var/games', '/usr/local/lib/games', '/usr/lib/games', '/usr/local/share/games', '/usr/share/games'] + dirs
 	if packagename and packagename != pname:
@@ -348,13 +350,14 @@ def read_data(name = None, text = True, dir = False, multiple = False, opened = 
 	else:
 		dirs = [os.path.join(x, pname) for x in dirs]
 	if not is_system:
-		dirs = [os.path.join(x, packagename or pname) for x in XDG_DATA_DIRS] + dirs
+		dirs = [os.path.join(x, packagename or pname) for x in XDG_DATA_DIRS] + dirs + [os.path.curdir]
 	for d in dirs:
 		t = os.path.join(d, filename)
-		if os.path.exists(t):
+		if t not in seen and os.path.exists(t):
 			r = t if dir or not opened else open(t, 'r' if text else 'rb')
 			if not multiple:
 				return r
+			seen.add(t)
 			target.append(r)
 	if multiple:
 		return target
