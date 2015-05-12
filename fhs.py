@@ -242,7 +242,7 @@ def remove_runtime(name = None, dir = False, packagename = None):
 # }}}
 
 # Temp files. {{{
-class TempFile:
+class TempFile(object):
 	def __init__(self, f, name):
 		# Avoid calling file.__setattr__.
 		object.__setattr__(self, '_file', f)
@@ -257,7 +257,7 @@ class TempFile:
 	def __setattr__(self, k, v):
 		return setattr(self._file, k, v)
 	def __enter__(self):
-		pass
+		return self
 	def __exit__(self, exc_type, exc_value, traceback):
 		self.remove()
 		return False
