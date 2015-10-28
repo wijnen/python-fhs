@@ -60,35 +60,8 @@ is_game = False
 pname = os.getenv('PACKAGE_NAME', os.path.basename(sys.argv[0]))
 HOME = os.path.expanduser('~')
 tempfiles = []
-# }}}
-
-__all__ = ( # {{{
-	# Call this function first, to set up the module and load the configuration.
-	'init',
-	# Save a changed configuration.
-	'save_config',
-	# Runtimefile
-	'write_runtime',
-	'read_runtime',
-	# Tempfile
-	'write_temp',
-	# Datafile
-	'write_data',
-	'read_data',
-	# Cachefile
-	'write_cache',
-	'read_cache',
-	# Lock
-	'lock',
-	'unlock',
-	# Logfile
-	'write_log',
-	# Spoolfile
-	'write_spool',
-	'read_spool',
-	# Whether we are running as a system service.
-	'is_system'
-	)
+configs = {}
+moduleconfig = {}
 # }}}
 
 # Configuration files. {{{
@@ -120,7 +93,16 @@ def unprotect(data):
 	return ret
 # }}}
 
-def init(config, packagename = None, system = None, game = False, argv = None):	# {{{
+def module_init(modulename, config): # {{{
+	assert modulename not in configs
+	configs[modulename] = config
+# }}}
+
+def module_get_config(modulename): # {{{
+	return moduleconfig[modulename];
+# }}}
+
+def init(config, packagename = None, system = None, game = False):	# {{{
 	'''Initialize the module.
 	The config argument should be set to a dict of possible arguments,
 	with their defaults as values.  Required arguments are given a value of None.
@@ -128,7 +110,7 @@ def init(config, packagename = None, system = None, game = False, argv = None):	
 	If system is True, system paths will be used for writing and user paths will be ignored for reading.
 	Returns configuration from commandline and config file.'''
 	global pname
-	if argv is None and packagename is not None:
+	if packagename is not None:
 		pname = packagename
 	global is_game
 	is_game = game
@@ -143,15 +125,30 @@ def init(config, packagename = None, system = None, game = False, argv = None):	
 	a.add_argument('--saveconfig', nargs = '?', default = False)
 	if system is None:
 		a.add_argument('--system', action = 'store_true')
-	for k in config:
-		if config[k] is None:
-			a.add_argument('--' + k, help = 'required if not in config file')
+	def add_arg(key, value):
+		if isinstance(value, (tuple, list)):
+			default = value[0]
 		else:
-			a.add_argument('--' + k, help = 'default: %s' % config[k])
-	args = a.parse_args(argv)
+			default = value
+		if default is None:
+			h = 'required if not in config file'
+		else:
+			h = 'default: %s' % default
+		a.add_argument('--' + key, help = h)
+	for k in config:
+		add_arg(k, config[k])
+	for m in configs:
+		for k in configs[m]:
+			add_arg(m + '-' + k, configs[m][k])
+	args = a.parse_args()
 	for k in config:
 		if getattr(args, k.replace('-', '_')) is not None:
 			ret[k] = getattr(args, k.replace('-', '_'))
+	for m in configs:
+		for k in configs[m]:
+			value = getattr(args, m + '_' + k.replace('-', '_'))
+			if value is not None:
+				moduleconfig[m][k] = value
 	filename = args.configfile if args.configfile else (packagename or pname) + os.extsep + 'ini'
 	for d in XDG_CONFIG_DIRS:
 		p = os.path.join(d, (packagename or pname), filename)
@@ -163,20 +160,50 @@ def init(config, packagename = None, system = None, game = False, argv = None):	
 					if key in ret:
 						continue
 					ret[key] = unprotect(value)
+		for m in configs:
+			p = os.path.join(d, m, filename)
+			if os.path.exists(p):
+				with open(p) as f:
+					for l in f.xreadlines():
+						key, value = l.split('=', 1)
+						key = unprotect(key)
+						if key in moduleconfig[m]:
+							continue
+						moduleconfig[m][key] = unprotect(value)
+	def convert(value, conf):
+		if conf is None:
+			return value
+		if isinstance(conf, (tuple, list)) and len(conf) >= 2:
+			return conf[1](value)
+		if isinstance(conf, bool) and isinstance(value, str):
+			v = value.lower()
+			assert v in ('0', '1', 'true', 'false', 'yes', 'no')
+			return v in ('1', 'true', 'yes')
+		return type(conf)(value)
 	for k in config:
 		if k not in ret:
 			if config[k] is None:
 				sys.stderr.write('Required but not defined: %s\n' % k)
 				sys.exit(1)
 			ret[k] = config[k]
+		else:
+			ret[k] = convert(ret[k], config[k])
+	for m in configs:
+		for k in configs[m]:
+			if k not in moduleconfig[m]:
+				if configs[m][k] is None:
+					sys.stderr.write('Required but not defined: %s-%s\n' % (m, k))
+					sys.exit(1)
+				moduleconfig[m][k] = configs[m][k]
+			else:
+				moduleconfig[m][k] = convert(moduleconfig[m][k], configs[m][k])
 	if args.saveconfig != False:
 		save_config(ret, args.configfile if config and args.configfile else filename, packagename)
 	global is_system
-	if argv is None:
-		if system is None:
-			is_system = args.system
-		else:
-			is_system = system
+	if system is None:
+		is_system = args.system
+	else:
+		is_system = system
 	global initialized
 	initialized = True
 	@atexit.register
