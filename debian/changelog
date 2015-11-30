@@ -1,5 +1,11 @@
-python-fhs (0.1-1) UNRELEASED; urgency=low
+python-fhs (0.2-1) UNRELEASED; urgency=medium
 
-  * Initial release. (Closes: #XXXXXX)
+  * New release.
 
- -- Bas Wijnen <wijnen@debian.org>  Tue, 24 Feb 2015 23:11:01 -0500
+ -- Bas Wijnen <wijnen@debian.org>  Mon, 30 Nov 2015 11:24:26 -0500
+
+python-fhs (0.1-1) unstable; urgency=medium
+
+  * Initial release.
+
+ -- Bas Wijnen <wijnen@debian.org>  Mon, 30 Nov 2015 11:24:09 -0500
