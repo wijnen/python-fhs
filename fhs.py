@@ -94,11 +94,15 @@ def unprotect(data):
 # }}}
 
 def module_init(modulename, config): # {{{
+	assert not initialized
 	assert modulename not in configs
 	configs[modulename] = config
+	moduleconfig[modulename] = {}
 # }}}
 
 def module_get_config(modulename): # {{{
+	if not initialized:
+		init({})
 	return moduleconfig[modulename];
 # }}}
 
@@ -109,6 +113,8 @@ def init(config, packagename = None, system = None, game = False):	# {{{
 	packagename has a default of the basename of the program.
 	If system is True, system paths will be used for writing and user paths will be ignored for reading.
 	Returns configuration from commandline and config file.'''
+	global initialized
+	assert not initialized
 	global pname
 	if packagename is not None:
 		pname = packagename
@@ -161,10 +167,10 @@ def init(config, packagename = None, system = None, game = False):	# {{{
 						continue
 					ret[key] = unprotect(value)
 		for m in configs:
-			p = os.path.join(d, m, filename)
+			p = os.path.join(d, m + os.extsep + 'ini')
 			if os.path.exists(p):
 				with open(p) as f:
-					for l in f.xreadlines():
+					for l in f.readlines():
 						key, value = l.split('=', 1)
 						key = unprotect(key)
 						if key in moduleconfig[m]:
@@ -204,7 +210,6 @@ def init(config, packagename = None, system = None, game = False):	# {{{
 		is_system = args.system
 	else:
 		is_system = system
-	global initialized
 	initialized = True
 	@atexit.register
 	def clean_temps():
