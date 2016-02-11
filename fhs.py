@@ -54,37 +54,47 @@ import atexit
 # }}}
 
 # Globals. {{{
+## Flag that is set to True when init() is called.
 initialized = False
+## Flag that is set during init() if --system was specified, or the application set the system parameter to init().
 is_system = False
+## Flag that is set during init() if the application set the game parameter to init().
 is_game = False
+## Default program name; can be overridden from functions that use it.
 pname = os.getenv('PACKAGE_NAME', os.path.basename(sys.argv[0]))
+## Current user's home directory.
 HOME = os.path.expanduser('~')
-tempfiles = []
-configs = {}
-moduleconfig = {}
+# Internal variables.
+_tempfiles = []
+_configs = {}
+_moduleconfig = {}
 # }}}
 
 # Configuration files. {{{
+## XDG home directory.
 XDG_CONFIG_HOME = os.getenv('XDG_CONFIG_HOME', os.path.join(HOME, '.config'))
+## XDG config directory search path.
 XDG_CONFIG_DIRS = tuple([XDG_CONFIG_HOME] + os.getenv('XDG_CONFIG_DIRS', '/etc/xdg').split(':'))
+
 # config read/write helpers {{{
-def protect(data, extra = ''):
+def _protect(data, extra = ''):
 	ret = ''
-	extra += '%'
-	for x in data:
+	extra += '\\'
+	for x in str(data):
 		o = ord(x)
 		if o < 32 or o >= 127 or x in extra:
-			ret += '%%%02x' % o
+			ret += '\\%x;' % o
 		else:
 			ret += x
 	return ret
 
-def unprotect(data):
+def _unprotect(data):
 	ret = ''
 	while len(data) > 0:
 		if data[0] == '%':
-			ret += chr(int(data[1:3], 16))
-			data = data[3:]
+			l = data.index(';')
+			ret += chr(int(data[1:l], 16))
+			data = data[l + 1:]
 		else:
 			if 32 <= ord(data[0]) < 127:
 				# newlines can happen; only this range is valid.
@@ -94,25 +104,73 @@ def unprotect(data):
 # }}}
 
 def module_init(modulename, config): # {{{
+	'''Add configuration for a module.
+	Register configuration options for a module.  This must be called
+	before init().  After init(), the values can be retrieved with
+	module_get_config().
+	@param modulename: Name of the requesting module.  Options get
+		--modulename- prefixed to them.
+	@param config: Configuration dict, with the same format as the
+		parameter for init().
+	@return None.
+	'''
 	assert not initialized
-	assert modulename not in configs
-	configs[modulename] = config
-	moduleconfig[modulename] = {}
+	assert modulename not in _configs
+	_configs[modulename] = config
+	_moduleconfig[modulename] = {}
 # }}}
 
 def module_get_config(modulename): # {{{
+	'''Retrieve module configuration.
+	A module can add configuration options by calling module_init() before
+	the program calls init().  This function is used to retrieve the
+	configuration.  If init() has not been called yet, it will be called
+	with an empty configuration.
+	@param modulename: Name of the module.  Must be identical to the name
+		that was passed to module_init().
+	@return configuration dict, with the same format as the return value of
+		init().  This dict does not include the automatic module prefix
+		of the module options.
+	'''
 	if not initialized:
 		init({})
-	return moduleconfig[modulename];
+	return _moduleconfig[modulename];
 # }}}
 
 def init(config, packagename = None, system = None, game = False):	# {{{
 	'''Initialize the module.
-	The config argument should be set to a dict of possible arguments,
-	with their defaults as values.  Required arguments are given a value of None.
-	packagename has a default of the basename of the program.
-	If system is True, system paths will be used for writing and user paths will be ignored for reading.
-	Returns configuration from commandline and config file.'''
+	This function must be called before any other in this module (except
+	module_init(), which must be called before this function).
+	Configuration is read from the commandline, and from the configuration
+	files named <packagename>.ini in any of the configuration directories,
+	or specified with --configfile.  A configuration file must contain
+	name=value pairs.  The configuration that is used can be saved using
+	--saveconfig, which can optionally have the filename to save to as a
+	parameter.
+	@param config: Configuration dict.
+		Keys are the configuration options.  These can be used in a
+		configuration file, or prefixed with -- and passed on the
+		commandline.  'help', 'configfile', 'saveconfig' and 'system'
+		are always handled by this module and must not be in the dict.
+		The value of the item is the default value for the option, or
+		None if it is a required option.  The given argument is
+		converted to the type of the default value.  Boolean values are
+		True if they are "1", "yes", or "true", and False if they are
+		"0", "no", or "false" (all case insensitive).  A custom
+		conversion function can be specified by using a tuple of
+		(default, function) where default is the default value, and
+		function is the conversion function.
+	@param packagename: The name of the program.  This is used as a default
+		for all other functions.  It has a default of the basename of
+		the program.
+	@param system: If True, system paths will be used for writing and user
+		paths will be ignored for reading.
+	@param game: If True, game system directories will be used (/usr/games,
+		/usr/share/games, etc.) instead of regular system directories.
+	@return Configuration from commandline and config file.
+		This is a dict with the same keys as were passed in the config
+		parameter, with the values that were specified as their values.  
+	'''
 	global initialized
 	assert not initialized
 	global pname
@@ -143,18 +201,18 @@ def init(config, packagename = None, system = None, game = False):	# {{{
 		a.add_argument('--' + key, help = h)
 	for k in config:
 		add_arg(k, config[k])
-	for m in configs:
-		for k in configs[m]:
-			add_arg(m + '-' + k, configs[m][k])
+	for m in _configs:
+		for k in _configs[m]:
+			add_arg(m + '-' + k, _configs[m][k])
 	args = a.parse_args()
 	for k in config:
 		if getattr(args, k.replace('-', '_')) is not None:
 			ret[k] = getattr(args, k.replace('-', '_'))
-	for m in configs:
-		for k in configs[m]:
+	for m in _configs:
+		for k in _configs[m]:
 			value = getattr(args, m + '_' + k.replace('-', '_'))
 			if value is not None:
-				moduleconfig[m][k] = value
+				_moduleconfig[m][k] = value
 	filename = args.configfile if args.configfile else (packagename or pname) + os.extsep + 'ini'
 	for d in XDG_CONFIG_DIRS:
 		p = os.path.join(d, (packagename or pname), filename)
@@ -162,20 +220,20 @@ def init(config, packagename = None, system = None, game = False):	# {{{
 			with open(p) as f:
 				for l in f.xreadlines():
 					key, value = l.split('=', 1)
-					key = unprotect(key)
+					key = _unprotect(key)
 					if key in ret:
 						continue
-					ret[key] = unprotect(value)
-		for m in configs:
+					ret[key] = _unprotect(value)
+		for m in _configs:
 			p = os.path.join(d, m + os.extsep + 'ini')
 			if os.path.exists(p):
 				with open(p) as f:
 					for l in f.readlines():
 						key, value = l.split('=', 1)
-						key = unprotect(key)
-						if key in moduleconfig[m]:
+						key = _unprotect(key)
+						if key in _moduleconfig[m]:
 							continue
-						moduleconfig[m][key] = unprotect(value)
+						_moduleconfig[m][key] = _unprotect(value)
 	def convert(value, conf):
 		if conf is None:
 			return value
@@ -194,15 +252,15 @@ def init(config, packagename = None, system = None, game = False):	# {{{
 			ret[k] = config[k]
 		else:
 			ret[k] = convert(ret[k], config[k])
-	for m in configs:
-		for k in configs[m]:
-			if k not in moduleconfig[m]:
-				if configs[m][k] is None:
+	for m in _configs:
+		for k in _configs[m]:
+			if k not in _moduleconfig[m]:
+				if _configs[m][k] is None:
 					sys.stderr.write('Required but not defined: %s-%s\n' % (m, k))
 					sys.exit(1)
-				moduleconfig[m][k] = configs[m][k]
+				_moduleconfig[m][k] = _configs[m][k]
 			else:
-				moduleconfig[m][k] = convert(moduleconfig[m][k], configs[m][k])
+				_moduleconfig[m][k] = convert(_moduleconfig[m][k], _configs[m][k])
 	if args.saveconfig != False:
 		save_config(ret, args.configfile if config and args.configfile else filename, packagename)
 	global is_system
@@ -213,12 +271,21 @@ def init(config, packagename = None, system = None, game = False):	# {{{
 	initialized = True
 	@atexit.register
 	def clean_temps():
-		for f in tempfiles:
+		for f in _tempfiles:
 			shutil.rmtree(f, ignore_errors = True)
 	return ret
 # }}}
 
 def save_config(config, name = None, packagename = None):	# {{{
+	'''Save a dict as a configuration file.
+	Write the config dict to a file in the configuration directory.  The
+	file is named <packagename>.ini, unless overridden.
+	@param config: The data to be saved.  All values are converted to str.
+	@param name: The name of the file to be saved.  ".ini" is appended to
+		this.
+	@param packagename: Override for the name of the package, to determine
+		the directory to save to.
+	'''
 	assert initialized
 	if name is None:
 		filename = (packagename or pname) + os.extsep + 'ini'
@@ -229,17 +296,18 @@ def save_config(config, name = None, packagename = None):	# {{{
 	d = os.path.dirname(target)
 	if not os.path.exists(d):
 		os.makedirs(d)
-	keys = config.keys()
+	keys = list(config.keys())
 	keys.sort()
 	with open(target, 'w') as f:
 		for key in keys:
-			f.write('%s=%s\n' % (protect(key, '='), protect(config[key])))
+			f.write('%s=%s\n' % (_protect(key, '='), _protect(config[key])))
 # }}}
 # }}}
 
 # Runtime files. {{{
+## XDG runtime directory.  Note that XDG does not specify a default for this.  This module uses /run as the default for system services.
 XDG_RUNTIME_DIR = os.getenv('XDG_RUNTIME_DIR')
-def runtime_get(name, packagename, dir):
+def _runtime_get(name, packagename, dir):
 	assert initialized
 	if name is None:
 		if dir:
@@ -254,18 +322,41 @@ def runtime_get(name, packagename, dir):
 	return d, target
 
 def write_runtime(name = None, text = True, dir = False, opened = True, packagename = None):
-	d, target = runtime_get(name, packagename, dir)
+	'''Open a runtime file for writing.
+	@param name: Filename to open.  Defaults to the program name.
+	@param text: If True (the default), open the file in text mode.  This parameter is ignored if the file is not opened.
+	@param dir: If True, create a directory instead of a file.  Defaults to False.
+	@param opened: If True (the default), return the open file.  For directories, the target is not created if this is set to False.
+	@param packagename: Override the packagename.
+	@return The opened file, or the file or directory name.
+	'''
+	d, target = _runtime_get(name, packagename, dir)
 	if opened and not os.path.exists(d):
 		os.makedirs(d)
 	return open(target, 'w+' if text else 'w+b') if opened and not dir else target
 
 def read_runtime(name = None, text = True, dir = False, opened = True, packagename = None):
-	d, target = runtime_get(name, packagename, dir)
+	'''Open a runtime file for reading.
+	@param name: Filename to open.  Defaults to the program name.
+	@param text: If True (the default), open the file in text mode.  This parameter is ignored if the file is not opened.
+	@param dir: If True, find a directory instead of a file.  Defaults to False.
+	@param opened: If True (the default), return the open file.  For directories, this is ignored.
+	@param packagename: Override the packagename.
+	@return The opened file, or the file or directory name.
+	'''
+	d, target = _runtime_get(name, packagename, dir)
 	if os.path.exists(target):
 		return open(target, 'r' if text else 'rb') if opened and not dir else target
 	return None
 
 def remove_runtime(name = None, dir = False, packagename = None):
+	'''Remove a reuntime file or directory.
+	A directory is removed recursively.  All parameters must be the same as what was passed to write_runtime() when the file was created.
+	@param name: Target to remove.
+	@param dir: If True, remove a directory instead of a file.  Defaults to False.
+	@param packagename: Override the packagename.
+	@return None.
+	'''
 	assert initialized
 	if dir:
 		shutil.rmtree(read_runtime(name, False, True, False, packagename), ignore_errors = False)
@@ -274,16 +365,19 @@ def remove_runtime(name = None, dir = False, packagename = None):
 # }}}
 
 # Temp files. {{{
-class TempFile(object):
+class _TempFile(object):
 	def __init__(self, f, name):
 		# Avoid calling file.__setattr__.
 		object.__setattr__(self, '_file', f)
 		object.__setattr__(self, 'filename', name)
 	def remove(self):
 		assert initialized
+		assert self.filename is not None
 		self.close()
 		os.unlink(self.filename)
-		tempfiles.remove(self.filename)
+		_tempfiles.remove(self.filename)
+		object.__setattr__(self, '_file', None)
+		object.__setattr__(self, 'filename', None)
 	def __getattr__(self, k):
 		return getattr(self._file, k)
 	def __setattr__(self, k, v):
@@ -295,27 +389,66 @@ class TempFile(object):
 		return False
 
 def write_temp(dir = False, text = True, packagename = None):
+	'''Open a temporary file for writing.
+	The file is automatically removed when the program exits.  If this
+	function is used in a with statement, the file is removed when the
+	statement finishes.
+
+	Unlike other write_* functions, this one has no option to get the
+	filename without opening the file, because that is a security risk for
+	temporary files.  However, the returned object is really a wrapper that
+	looks like a file, but has one extra attribute: "filename".  This can
+	be used in cases where for other file types "opened = False" would be
+	appropriate.  It also has an extra method: "remove".  This takes no
+	arguments and removes the file immediately.  "remove" should not be
+	called multiple times.
+	@param dir: If False (the default), a file is created.  If True, a
+		directory is created and the name is returned.  On remove, the
+		directory contents are recursively removed.
+	@param text: If True (the default), the file is opened in text mode.
+		This parameter is ignored if dir is True.
+	@param packagename: Override the packagename.
+	@return The file, or the name of the directory.
+	'''
 	assert initialized
 	if dir:
 		ret = tempfile.mkdtemp(prefix = (packagename or pname) + '-')
-		tempfiles.append(ret)
+		_tempfiles.append(ret)
 	else:
 		f = tempfile.mkstemp(text = text, prefix = (packagename or pname) + '-')
-		tempfiles.append(f[1])
-		ret = TempFile(os.fdopen(f[0], 'w+' if text else 'w+b'), f[1])
+		_tempfiles.append(f[1])
+		ret = _TempFile(os.fdopen(f[0], 'w+' if text else 'w+b'), f[1])
 	return ret
 
 def remove_temp(name):
+	'''Remove a temporary directory.
+	Temporary files are removed by closing them.  Directories are removed
+	by calling this function.  They are also removed when the program ends
+	normally.
+	@param name: The name of the directory, as returned by write_temp.
+	@return None.
+	'''
 	assert initialized
-	assert name in tempfiles
-	tempfiles.remove(name)
+	assert name in _tempfiles
+	_tempfiles.remove(name)
 	shutil.rmtree(name, ignore_errors = False)
 # }}}
 
 # Data files. {{{
+## XDG data directory.
 XDG_DATA_HOME = os.getenv('XDG_DATA_HOME', os.path.join(HOME, '.local', 'share'))
+## XDG data directory search path.
 XDG_DATA_DIRS = os.getenv('XDG_DATA_DIRS', '/usr/local/share:/usr/share').split(':')
+
 def write_data(name = None, text = True, dir = False, opened = True, packagename = None):
+	'''Open a data file for writing.  The file is not truncated if it exists.
+	@param name: Name of the data file.
+	@param text: Open as a text file if True (the default).
+	@param dir: Create a directory if True, a file if False (the default).
+	@param opened: Open or create the file if True (the default), report the name if False.
+	@param packagename: Override the packagename.
+	@return The opened file, or the name of the file or directory.
+	'''
 	assert initialized
 	if name is None:
 		if dir:
@@ -349,6 +482,14 @@ def write_data(name = None, text = True, dir = False, opened = True, packagename
 		return open(target, 'w+' if text else 'w+b') if opened else target
 
 def read_data(name = None, text = True, dir = False, multiple = False, opened = True, packagename = None):
+	'''Open a data file for reading.  The paramers should be identical to what was used to create the file with write_data().
+	@param name: Name of the data file.
+	@param text: Open as a text file if True (the default).
+	@param dir: Return a directory name if True, a file or filename if False (the default).
+	@param opened: Open the file if True (the default), report the name if False.
+	@param packagename: Override the packagename.
+	@return The opened file, or the name of the file or directory.
+	'''
 	assert initialized
 	if name is None:
 		if dir:
@@ -397,6 +538,12 @@ def read_data(name = None, text = True, dir = False, multiple = False, opened = 
 		return None
 
 def remove_data(name = None, dir = False, packagename = None):
+	'''Remove a data file.  Use the same parameters as were used to create it with write_data().
+	@param name: The file to remove.
+	@param dir: If True, remove a directory.  If False (the default), remove a file.
+	@param packagename: Override the packagename.
+	@return None.
+	'''
 	assert initialized
 	if dir:
 		shutil.rmtree(read_data(name, False, True, False, False, packagename), ignore_errors = False)
@@ -405,8 +552,18 @@ def remove_data(name = None, dir = False, packagename = None):
 # }}}
 
 # Cache files. {{{
+## XDG cache directory.
 XDG_CACHE_HOME = os.getenv('XDG_CACHE_HOME', os.path.join(HOME, '.cache'))
+
 def write_cache(name = None, text = True, dir = False, opened = True, packagename = None):
+	'''Open a cache file for writing.  The file is not truncated if it exists.
+	@param name: Name of the cache file.
+	@param text: Open as a text file if True (the default).
+	@param dir: Create a directory if True, a file if False (the default).
+	@param opened: Open or create the file if True (the default), report the name if False.
+	@param packagename: Override the packagename.
+	@return The opened file, or the name of the file or directory.
+	'''
 	assert initialized
 	if name is None:
 		if dir:
@@ -428,6 +585,14 @@ def write_cache(name = None, text = True, dir = False, opened = True, packagenam
 		return open(target, 'w+' if text else 'w+b') if opened and not dir else target
 
 def read_cache(name = None, text = True, dir = False, opened = True, packagename = None):
+	'''Open a cache file for reading.  The paramers should be identical to what was used to create the file with write_cache().
+	@param name: Name of the cache file.
+	@param text: Open as a text file if True (the default).
+	@param dir: Return a directory name if True, a file or filename if False (the default).
+	@param opened: Open the file if True (the default), report the name if False.
+	@param packagename: Override the packagename.
+	@return The opened file, or the name of the file or directory.
+	'''
 	assert initialized
 	if name is None:
 		if dir:
@@ -447,6 +612,12 @@ def read_cache(name = None, text = True, dir = False, opened = True, packagename
 	return open(target, 'r' if text else 'rb') if opened and not dir else target
 
 def remove_cache(name = None, dir = False, packagename = None):
+	'''Remove a cache file.  Use the same parameters as were used to create it with write_cache().
+	@param name: The file to remove.
+	@param dir: If True, remove a directory.  If False (the default), remove a file.
+	@param packagename: Override the packagename.
+	@return None.
+	'''
 	assert initialized
 	if dir:
 		shutil.rmtree(read_cache(name, False, True, False, packagename), ignore_errors = False)
@@ -456,6 +627,14 @@ def remove_cache(name = None, dir = False, packagename = None):
 
 # Log files. {{{
 def write_log(name = None, packagename = None):
+	'''Open a log file for writing.
+	There are not many options here; logfiles are always opened for append,
+	never read, and never removed by the program.  Log directories can be
+	created by specifying a directory as part of the name.
+	@param name: Log filename.
+	@param packagename: Override the packagename.
+	@return The logfile, opened in text append mode.
+	'''
 	assert initialized
 	if not is_system:
 		return sys.stderr
@@ -472,6 +651,16 @@ def write_log(name = None, packagename = None):
 
 # Spool files. {{{
 def write_spool(name = None, text = True, dir = False, opened = True, packagename = None):
+	'''Open a spool file for writing.  The file is not truncated if it exists.
+	Users don't have spool directories by default.  A directory named
+	"spool" in the cache directory is created for that.
+	@param name: Name of the spool file.
+	@param text: Open as a text file if True (the default).
+	@param dir: Create a directory if True, a file if False (the default).
+	@param opened: Open or create the file if True (the default), report the name if False.
+	@param packagename: Override the packagename.
+	@return The opened file, or the name of the file or directory.
+	'''
 	assert initialized
 	if name is None:
 		if dir:
@@ -487,6 +676,14 @@ def write_spool(name = None, text = True, dir = False, opened = True, packagenam
 	return open(target, 'w+' if text else 'w+b') if opened and not dir else target
 
 def read_spool(name = None, text = True, dir = False, opened = True, packagename = None):
+	'''Open a spool file for reading.  The paramers should be identical to what was used to create the file with write_spool().
+	@param name: Name of the spool file.
+	@param text: Open as a text file if True (the default).
+	@param dir: Return a directory name if True, a file or filename if False (the default).
+	@param opened: Open the file if True (the default), report the name if False.
+	@param packagename: Override the packagename.
+	@return The opened file, or the name of the file or directory.
+	'''
 	assert initialized
 	if name is None:
 		if dir:
@@ -500,7 +697,13 @@ def read_spool(name = None, text = True, dir = False, opened = True, packagename
 		return None
 	return open(target, 'r' if text else 'rb') if opened and not dir else target
 
-def remove_sppol(name = None, dir = False, packagename = None):
+def remove_spool(name = None, dir = False, packagename = None):
+	'''Remove a spool file.  Use the same parameters as were used to create it with write_spool().
+	@param name: The file to remove.
+	@param dir: If True, remove a directory.  If False (the default), remove a file.
+	@param packagename: Override the packagename.
+	@return None.
+	'''
 	assert initialized
 	if name is None:
 		if dir:
@@ -516,10 +719,16 @@ def remove_sppol(name = None, dir = False, packagename = None):
 
 # Locks. {{{
 def lock(name = None, info = '', packagename = None):
+	'''Acquire a lock.
+	@todo locks are currently not implemented.
+	'''
 	assert initialized
 	# TODO
 
 def unlock(name = None, packagename = None):
+	'''Release a lock.
+	@todo locks are currently not implemented.
+	'''
 	assert initialized
 	# TODO
 # }}}
