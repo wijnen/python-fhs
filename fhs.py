@@ -1,6 +1,15 @@
 # This module implements fhs directory support in Python.
 # vim: set foldmethod=marker :
 
+'''Module for using paths as described in the FHS.
+This module makes it easy to find files in the locations that are defined for
+them by the FHS.  Some locations are not defined there.  This module chooses a
+location for those.
+
+It also defines a configuration file format which is used automatically when
+initializing this module.
+'''
+
 # Paths and how they are handled by this module: {{{
 # /etc			configfile
 # /run			runtimefile
