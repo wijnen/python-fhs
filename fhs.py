@@ -227,7 +227,7 @@ def init(config, packagename = None, system = None, game = False):	# {{{
 		p = os.path.join(d, (packagename or pname), filename)
 		if os.path.exists(p):
 			with open(p) as f:
-				for l in f.xreadlines():
+				for l in f:
 					key, value = l.split('=', 1)
 					key = _unprotect(key)
 					if key in ret:
