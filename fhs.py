@@ -1,7 +1,23 @@
 # This module implements fhs directory support in Python.
-# vim: set foldmethod=marker :
+# vim: set fileencoding=utf-8 foldmethod=marker :
 
-'''Module for using paths as described in the FHS.
+# {{{ Copyright 2013-2016 Bas Wijnen <wijnen@debian.org>
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# }}}
+
+# File documentation. {{{
+'''@mainpage
 This module makes it easy to find files in the locations that are defined for
 them by the FHS.  Some locations are not defined there.  This module chooses a
 location for those.
@@ -9,6 +25,25 @@ location for those.
 It also defines a configuration file format which is used automatically when
 initializing this module.
 '''
+
+'''@file
+This module makes it easy to find files in the locations that are defined for
+them by the FHS.  Some locations are not defined there.  This module chooses a
+location for those.
+
+It also defines a configuration file format which is used automatically when
+initializing this module.
+'''
+
+'''@package fhs Module for using paths as described in the FHS.
+This module makes it easy to find files in the locations that are defined for
+them by the FHS.  Some locations are not defined there.  This module chooses a
+location for those.
+
+It also defines a configuration file format which is used automatically when
+initializing this module.
+'''
+# }}}
 
 # Paths and how they are handled by this module: {{{
 # /etc			configfile
@@ -354,7 +389,7 @@ def read_runtime(name = None, text = True, dir = False, opened = True, packagena
 	@return The opened file, or the file or directory name.
 	'''
 	d, target = _runtime_get(name, packagename, dir)
-	if os.path.exists(target):
+	if os.path.exists(target) and (dir if os.path.isdir(target) else not dir):
 		return open(target, 'r' if text else 'rb') if opened and not dir else target
 	return None
 
@@ -511,7 +546,7 @@ def read_data(name = None, text = True, dir = False, multiple = False, opened = 
 	target = []
 	if not is_system:
 		t = os.path.join(XDG_DATA_HOME, filename)
-		if t not in seen and os.path.exists(t):
+		if t not in seen and os.path.exists(t) and (dir if os.path.isdir(t) else not dir):
 			r = t if dir or not opened else open(t, 'r' if text else 'rb')
 			if not multiple:
 				return r
@@ -535,7 +570,7 @@ def read_data(name = None, text = True, dir = False, multiple = False, opened = 
 		dirs = [os.path.curdir, packagename or pname] + [os.path.join(x, packagename or pname) for x in XDG_DATA_DIRS] + dirs
 	for d in dirs:
 		t = os.path.join(d, filename)
-		if t not in seen and os.path.exists(t):
+		if t not in seen and os.path.exists(t) and (dir if os.path.isdir(t) else not dir):
 			r = t if dir or not opened else open(t, 'r' if text else 'rb')
 			if not multiple:
 				return r
