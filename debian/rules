@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 
-PYBUILD_NAME = fhs
+export PYBUILD_NAME = fhs
 
 %:
 	dh $@ --with python3 --buildsystem=pybuild
