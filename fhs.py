@@ -305,6 +305,7 @@ def init(config, packagename = None, system = None, game = False):	# {{{
 				_moduleconfig[m][k] = _configs[m][k]
 			else:
 				_moduleconfig[m][k] = convert(_moduleconfig[m][k], _configs[m][k])
+	initialized = True
 	if args.saveconfig != False:
 		save_config(ret, args.configfile if config and args.configfile else filename, packagename)
 	global is_system
@@ -312,7 +313,6 @@ def init(config, packagename = None, system = None, game = False):	# {{{
 		is_system = args.system
 	else:
 		is_system = system
-	initialized = True
 	@atexit.register
 	def clean_temps():
 		for f in _tempfiles:
