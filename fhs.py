@@ -112,6 +112,7 @@ HOME = os.path.expanduser('~')
 _tempfiles = []
 _configs = {}
 _moduleconfig = {}
+_base = os.path.abspath(os.path.dirname(sys.argv[0]))
 # }}}
 
 # Configuration files. {{{
@@ -560,7 +561,7 @@ def read_data(name = None, text = True, dir = False, multiple = False, opened = 
 	else:
 		dirs = [os.path.join(x, pname) for x in dirs]
 	if not is_system:
-		dirs = [os.path.curdir, packagename or pname] + [os.path.join(x, packagename or pname) for x in XDG_DATA_DIRS] + dirs
+		dirs = [_base, os.path.curdir, packagename or pname] + [os.path.join(x, packagename or pname) for x in XDG_DATA_DIRS] + dirs
 	for d in dirs:
 		t = os.path.join(d, filename)
 		if t not in seen and os.path.exists(t) and (dir if os.path.isdir(t) else not dir):
