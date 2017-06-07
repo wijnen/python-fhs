@@ -748,7 +748,6 @@ def remove_spool(name = None, dir = False, packagename = None):
 			filename = packagename or pname
 		else:
 			filename = (packagename or pname) + os.extsep + 'dat'
-	target = os.path.join('/var/spool' if is_system else os.path.join(XDG_CACHE_HOME, 'spool'), filename)
 	if dir:
 		shutil.rmtree(read_spool(name, False, True, False, packagename), ignore_errors = False)
 	else:
