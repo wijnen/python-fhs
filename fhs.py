@@ -223,6 +223,9 @@ def init(config, packagename = None, system = None, game = False):	# {{{
 		pname = packagename
 	global is_game
 	is_game = game
+	global XDG_RUNTIME_DIR
+	if XDG_RUNTIME_DIR is None:
+		XDG_RUNTIME_DIR = write_temp(dir = True)
 	ret = {}
 	# Allow overriding values from the commandline; require them if the default is set to None.
 	assert 'configfile' not in config
