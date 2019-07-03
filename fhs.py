@@ -318,7 +318,10 @@ def init(config, packagename = None, system = None, game = False):	# {{{
 	@atexit.register
 	def clean_temps():
 		for f in _tempfiles:
-			shutil.rmtree(f, ignore_errors = True)
+			try:
+				os.unlink(f)
+			except:
+				shutil.rmtree(f, ignore_errors = True)
 	if XDG_RUNTIME_DIR is None:
 		XDG_RUNTIME_DIR = write_temp(dir = True)
 	return ret
