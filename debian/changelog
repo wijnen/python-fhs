@@ -1,8 +1,8 @@
-python-fhs (0.2-1) UNRELEASED; urgency=medium
+python-fhs (1.0-1) UNRELEASED; urgency=medium
 
   * New release.
 
- -- Bas Wijnen <wijnen@debian.org>  Mon, 30 Nov 2015 11:24:26 -0500
+ -- Bas Wijnen <wijnen@debian.org>  Mon, 07 Oct 2019 23:47:10 +0200
 
 python-fhs (0.1-1) unstable; urgency=medium
 
