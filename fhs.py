@@ -350,7 +350,7 @@ def load_config(filename, values = None, present = None, options = None): # {{{
 		if cfg.strip() == '' or cfg.strip().startswith('#'):
 			continue
 		if '=' not in cfg:
-			print('invalid line in config file %s: %s' % (configfile, cfg), file = sys.stderr)
+			print('invalid line in config file %s: %s' % (filename, cfg), file = sys.stderr)
 		key, value = cfg.split('=', 1)
 		key = _unprotect(key)
 		if not new_values and key not in values:
@@ -605,7 +605,7 @@ def init(config = None, help = None, version = None, contact = None, packagename
 	option_order = []
 	option('help', 'Show this help text', short = None if any(_options[o]['short'] == 'h' for o in _options) else 'h', argtype = bool, options = first_options, option_order = option_order) 
 	option('version', 'Show version information', short = None if any(_options[o]['short'] == 'v' for o in _options) else 'v', argtype = bool, options = first_options, option_order = option_order) 
-	option('configfile', 'Use this file for loading and/or saving commandline configuration', default = (packagename or pname) + os.extsep + 'ini', options = first_options, option_order = option_order)
+	option('configfile', 'Use this file for loading and/or saving commandline configuration', default = 'commandline', options = first_options, option_order = option_order)
 	option('saveconfig', 'Save active commandline configuration as default or to the named file', optional = True, default = None, noarg = '', argtype = str, options = first_options, option_order = option_order)
 	if system is None:
 		option('system', 'Use only system paths', argtype = bool, options = first_options, option_order = option_order)
