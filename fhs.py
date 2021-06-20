@@ -194,7 +194,14 @@ def read_config(name = None, text = True, dir = False, multiple = False, opened 
 	else:
 		dirs = [os.path.join(x, pname) for x in dirs]
 	if not is_system:
-		dirs = [_base, os.path.curdir, packagename or pname] + [os.path.join(x, packagename or pname) for x in XDG_CONFIG_DIRS] + dirs
+		def add_dir(dirs, d):
+			if not any(os.path.abspath(d) == os.path.abspath(x) for x in dirs):
+				dirs.insert(0, d)
+		for d in XDG_CONFIG_DIRS:
+			add_dir(dirs, d)
+		add_dir(dirs, packagename or pname)
+		add_dir(dirs, os.path.curdir)
+		add_dir(dirs, _base)
 	for d in dirs:
 		t = os.path.join(d, filename)
 		if t not in seen and os.path.exists(t) and (dir if os.path.isdir(t) else not dir):
@@ -964,7 +971,14 @@ def read_data(name = None, text = True, dir = False, multiple = False, opened = 
 	else:
 		dirs = [os.path.join(x, pname) for x in dirs]
 	if not is_system:
-		dirs = [_base, os.path.curdir, packagename or pname] + [os.path.join(x, packagename or pname) for x in XDG_DATA_DIRS] + dirs
+		def add_dir(dirs, d):
+			if not any(os.path.abspath(d) == os.path.abspath(x) for x in dirs):
+				dirs.insert(0, d)
+		for d in XDG_DATA_DIRS:
+			add_dir(dirs, d)
+		add_dir(dirs, packagename or pname)
+		add_dir(dirs, os.path.curdir)
+		add_dir(dirs, _base)
 	for d in dirs:
 		t = os.path.join(d, filename)
 		if t not in seen and os.path.exists(t) and (dir if os.path.isdir(t) else not dir):
