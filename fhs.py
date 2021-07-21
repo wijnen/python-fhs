@@ -182,33 +182,31 @@ def read_config(name = None, text = True, dir = False, multiple = False, opened 
 	target = []
 	if not is_system:
 		t = os.path.join(XDG_CONFIG_HOME, filename if name is None else os.path.join(packagename or pname, name))
-		if t not in seen and os.path.exists(t) and (dir if os.path.isdir(t) else not dir):
+		if os.path.realpath(t) not in seen and os.path.exists(t) and (dir if os.path.isdir(t) else not dir):
 			r = t if dir or not opened else open(t, 'r' if text else 'rb')
 			if not multiple:
 				return r
-			seen.add(t)
+			seen.add(os.path.realpath(t))
 			target.append(r)
 	dirs = ['/etc/xdg', '/usr/local/etc/xdg']
+	if not is_system:
+		for d in XDG_CONFIG_DIRS:
+			dirs.insert(0, d)
 	if packagename and packagename != pname:
 		dirs = [os.path.join(x, pname, packagename) for x in dirs] + [os.path.join(x, packagename) for x in dirs]
 	else:
 		dirs = [os.path.join(x, pname) for x in dirs]
 	if not is_system:
-		def add_dir(dirs, d):
-			if not any(os.path.abspath(d) == os.path.abspath(x) for x in dirs):
-				dirs.insert(0, d)
-		for d in XDG_CONFIG_DIRS:
-			add_dir(dirs, d)
-		add_dir(dirs, packagename or pname)
-		add_dir(dirs, os.path.curdir)
-		add_dir(dirs, _base)
+		dirs.insert(0, packagename or pname)
+		dirs.insert(0, os.path.curdir)
+		dirs.insert(0, _base)
 	for d in dirs:
 		t = os.path.join(d, filename)
-		if t not in seen and os.path.exists(t) and (dir if os.path.isdir(t) else not dir):
+		if os.path.realpath(t) not in seen and os.path.exists(t) and (dir if os.path.isdir(t) else not dir):
 			r = t if dir or not opened else open(t, 'r' if text else 'rb')
 			if not multiple:
 				return r
-			seen.add(t)
+			seen.add(os.path.realpath(t))
 			target.append(r)
 	if multiple:
 		return target
@@ -957,35 +955,33 @@ def read_data(name = None, text = True, dir = False, multiple = False, opened = 
 	target = []
 	if not is_system:
 		t = os.path.join(XDG_DATA_HOME, filename if name is None else os.path.join(packagename or pname, name))
-		if t not in seen and os.path.exists(t) and (dir if os.path.isdir(t) else not dir):
+		if os.path.realpath(t) not in seen and os.path.exists(t) and (dir if os.path.isdir(t) else not dir):
 			r = t if dir or not opened else open(t, 'r' if text else 'rb')
 			if not multiple:
 				return r
-			seen.add(t)
+			seen.add(os.path.realpath(t))
 			target.append(r)
 	dirs = ['/var/local/lib', '/var/lib', '/usr/local/lib', '/usr/lib', '/usr/local/share', '/usr/share']
 	if is_game:
 		dirs = ['/var/local/games', '/var/games', '/usr/local/lib/games', '/usr/lib/games', '/usr/local/share/games', '/usr/share/games'] + dirs
+	if not is_system:
+		for d in XDG_DATA_DIRS:
+			dirs.insert(0, d)
 	if packagename and packagename != pname:
 		dirs = [os.path.join(x, pname, packagename) for x in dirs] + [os.path.join(x, packagename) for x in dirs]
 	else:
 		dirs = [os.path.join(x, pname) for x in dirs]
 	if not is_system:
-		def add_dir(dirs, d):
-			if not any(os.path.abspath(d) == os.path.abspath(x) for x in dirs):
-				dirs.insert(0, d)
-		for d in XDG_DATA_DIRS:
-			add_dir(dirs, d)
-		add_dir(dirs, packagename or pname)
-		add_dir(dirs, os.path.curdir)
-		add_dir(dirs, _base)
+		dirs.insert(0, packagename or pname)
+		dirs.insert(0, os.path.curdir)
+		dirs.insert(0, _base)
 	for d in dirs:
 		t = os.path.join(d, filename)
-		if t not in seen and os.path.exists(t) and (dir if os.path.isdir(t) else not dir):
+		if os.path.realpath(t) not in seen and os.path.exists(t) and (dir if os.path.isdir(t) else not dir):
 			r = t if dir or not opened else open(t, 'r' if text else 'rb')
 			if not multiple:
 				return r
-			seen.add(t)
+			seen.add(os.path.realpath(t))
 			target.append(r)
 	if multiple:
 		return target
