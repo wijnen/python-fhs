@@ -1,8 +1,9 @@
-python-fhs (1.0-1) UNRELEASED; urgency=medium
+python-fhs (1.0-1) unstable; urgency=medium
 
   * New release.
+  * Upload to Debian. Closes: #1010010
 
- -- Bas Wijnen <wijnen@debian.org>  Mon, 07 Oct 2019 23:47:10 +0200
+ -- Bas Wijnen <wijnen@debian.org>  Fri, 22 Apr 2022 11:45:31 +0200
 
 python-fhs (0.1-1) unstable; urgency=medium
 
