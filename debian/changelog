@@ -1,6 +1,7 @@
 python-fhs (1.2-1) UNRELEASED; urgency=medium
 
-  * 
+  * Actually update Standards-Version field in control file.
+  * Set Multi-Arch: foreign.
 
  -- Bas Wijnen <wijnen@debian.org>  Tue, 31 May 2022 12:54:08 +0200
 
