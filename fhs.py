@@ -965,7 +965,7 @@ def read_data(name = None, text = True, dir = False, multiple = False, opened = 
 	if is_game:
 		dirs = ['/var/local/games', '/var/games', '/usr/local/lib/games', '/usr/lib/games', '/usr/local/share/games', '/usr/share/games'] + dirs
 	if not is_system:
-		for d in XDG_DATA_DIRS:
+		for d in XDG_DATA_DIRS[::-1]:
 			dirs.insert(0, d)
 	if packagename and packagename != pname:
 		dirs = [os.path.join(x, pname, packagename) for x in dirs] + [os.path.join(x, packagename) for x in dirs]

@@ -1,0 +1,28 @@
+#!/bin/bash
+
+temp="`mktemp -d`"
+export XDG_CONFIG_HOME="$temp"/home/
+mkdir -p $XDG_CONFIG_HOME
+export XDG_RUNTIME_DIR="$temp"/run/
+mkdir -p $XDG_RUNTIME_DIR
+export XDG_DATA_HOME="$temp"/data/
+mkdir -p $XDG_DATA_HOME
+export XDG_CACHE_HOME="$temp"/data/
+mkdir -p $XDG_CACHE_HOME
+
+mkdir -p "$temp"/data/fhs-test
+echo 'This is test data' > "$temp"/data/fhs-test/test-data.txt
+
+"`dirname "$0"`"/run-test.py > "$temp"/output.txt
+
+cat > "$temp"/correct.txt <<EOF
+value of test is 'try this'
+value of go is []
+value of num is 28
+value of verbose is False
+value of mod-test is 1.5
+file contents: This is test data
+
+EOF
+
+diff -u "$temp"/output.txt "$temp"/correct.txt

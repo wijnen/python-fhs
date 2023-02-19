@@ -1,9 +1,11 @@
-python-fhs (1.2-1) UNRELEASED; urgency=medium
+python-fhs (1.2-1) unstable; urgency=medium
 
-  * Actually update Standards-Version field in control file.
+  * Update Standards-Version to 4.6.2. No changes needed.
   * Set Multi-Arch: foreign.
+  * Update doxygen configuration.
+  * Add package tests.
 
- -- Bas Wijnen <wijnen@debian.org>  Tue, 31 May 2022 12:54:08 +0200
+ -- Bas Wijnen <wijnen@debian.org>  Sun, 19 Feb 2023 02:29:24 +0100
 
 python-fhs (1.1-1) unstable; urgency=medium
 
