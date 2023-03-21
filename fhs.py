@@ -117,6 +117,7 @@ _module_config = {}
 _module_values = {}
 _module_present = {}
 _base = os.path.abspath(os.path.dirname(sys.argv[0]))
+_atinit = []
 # }}}
 
 # Configuration files. {{{
@@ -134,7 +135,7 @@ def write_config(name = None, text = True, dir = False, opened = True, packagena
 	@param packagename: Override the packagename.
 	@return The opened file, or the name of the file or directory.
 	'''
-	assert initialized
+	assert initialized is not False
 	if name is None:
 		if dir:
 			filename = packagename or pname
@@ -170,7 +171,7 @@ def read_config(name = None, text = True, dir = False, multiple = False, opened 
 	@param packagename: Override the packagename.
 	@return The opened file, or the name of the file or directory.
 	'''
-	assert initialized
+	assert initialized is not False
 	if name is None:
 		if dir:
 			filename = packagename or pname
@@ -221,7 +222,7 @@ def remove_config(name = None, dir = False, packagename = None): # {{{
 	@param packagename: Override the packagename.
 	@return None.
 	'''
-	assert initialized
+	assert initialized is not False
 	if dir:
 		shutil.rmtree(read_config(name, False, True, False, False, packagename), ignore_errors = False)
 	else:
@@ -386,7 +387,7 @@ def save_config(config, name = None, packagename = None):	# {{{
 	@param packagename: Override for the name of the package, to determine
 		the directory to save to.
 	'''
-	assert initialized
+	assert initialized is not False
 	if name is None:
 		filename = 'commandline' + os.extsep + 'ini'
 	else:
@@ -639,7 +640,7 @@ def init(config = None, help = None, version = None, contact = None, packagename
 	if system is None:
 		is_system = _values['system']
 
-	initialized = True
+	initialized = None
 	if saveconfig == '':
 		saveconfig = configfile
 	load_config(configfile, _values, _present, options)
@@ -663,7 +664,20 @@ def init(config = None, help = None, version = None, contact = None, packagename
 				shutil.rmtree(f, ignore_errors = True)
 	if XDG_RUNTIME_DIR is None:
 		XDG_RUNTIME_DIR = write_temp(dir = True)
+	while len(_atinit) > 0:
+		_atinit.pop(0)()
+	initialized = True
 	return _values
+# }}}
+
+def atinit(target): # {{{
+	'''Decorator for registering a function at init.
+	This can also be called as a regular function.'''
+	# Initialized is False at boot, None during initialization and True after.
+	# Allow adding new atinit tasks from running atinit tasks, so only check for True.
+	assert initialized is not True
+	_atinit.append(target)
+	return target
 # }}}
 
 def get_config(extra = False): # {{{
@@ -678,7 +692,7 @@ def get_config(extra = False): # {{{
 	@return configuration dict, and possibly present dict, with the same
 		format as the return value of init().
 	'''
-	if not initialized:
+	if initialized is False:
 		print('Warning: init() should be called before get_config() to set program information', file = sys.stderr)
 		init()
 	if extra:
@@ -747,7 +761,7 @@ def module_get_config(modulename, extra = False): # {{{
 		init().  This dict does not include the automatic module prefix
 		of the module options.
 	'''
-	if not initialized:
+	if initialized is False:
 		init()
 	if extra:
 		return _module_values[modulename], _module_present[modulename];
@@ -761,7 +775,7 @@ def module_get_config(modulename, extra = False): # {{{
 ## XDG runtime directory.  Note that XDG does not specify a default for this.  This module uses /run as the default for system services.
 XDG_RUNTIME_DIR = os.getenv('XDG_RUNTIME_DIR')
 def _runtime_get(name, packagename, dir):
-	assert initialized
+	assert initialized is not False
 	if name is None:
 		if dir:
 			name = packagename or pname
@@ -810,7 +824,7 @@ def remove_runtime(name = None, dir = False, packagename = None):
 	@param packagename: Override the packagename.
 	@return None.
 	'''
-	assert initialized
+	assert initialized is not False
 	if dir:
 		shutil.rmtree(read_runtime(name, False, True, False, packagename), ignore_errors = False)
 	else:
@@ -824,7 +838,7 @@ class _TempFile:
 		super().__setattr__('_file', f)
 		super().__setattr__('filename', name)
 	def remove(self):
-		assert initialized
+		assert initialized is not False
 		assert self.filename is not None
 		self.close()
 		os.unlink(self.filename)
@@ -863,7 +877,7 @@ def write_temp(dir = False, text = True, packagename = None):
 	@param packagename: Override the packagename.
 	@return The file, or the name of the directory.
 	'''
-	assert initialized
+	assert initialized is not False
 	if dir:
 		ret = tempfile.mkdtemp(prefix = (packagename or pname) + '-')
 		_tempfiles.append(ret)
@@ -881,7 +895,7 @@ def remove_temp(name):
 	@param name: The name of the directory, as returned by write_temp.
 	@return None.
 	'''
-	assert initialized
+	assert initialized is not False
 	assert name in _tempfiles
 	_tempfiles.remove(name)
 	shutil.rmtree(name, ignore_errors = False)
@@ -902,7 +916,7 @@ def write_data(name = None, text = True, dir = False, opened = True, packagename
 	@param packagename: Override the packagename.
 	@return The opened file, or the name of the file or directory.
 	'''
-	assert initialized
+	assert initialized is not False
 	if name is None:
 		if dir:
 			filename = packagename or pname
@@ -943,7 +957,7 @@ def read_data(name = None, text = True, dir = False, multiple = False, opened = 
 	@param packagename: Override the packagename.
 	@return The opened file, or the name of the file or directory.
 	'''
-	assert initialized
+	assert initialized is not False
 	if name is None:
 		if dir:
 			filename = packagename or pname
@@ -995,7 +1009,7 @@ def remove_data(name = None, dir = False, packagename = None):
 	@param packagename: Override the packagename.
 	@return None.
 	'''
-	assert initialized
+	assert initialized is not False
 	if dir:
 		shutil.rmtree(read_data(name, False, True, False, False, packagename), ignore_errors = False)
 	else:
@@ -1015,7 +1029,7 @@ def write_cache(name = None, text = True, dir = False, opened = True, packagenam
 	@param packagename: Override the packagename.
 	@return The opened file, or the name of the file or directory.
 	'''
-	assert initialized
+	assert initialized is not False
 	if name is None:
 		if dir:
 			filename = packagename or pname
@@ -1044,7 +1058,7 @@ def read_cache(name = None, text = True, dir = False, opened = True, packagename
 	@param packagename: Override the packagename.
 	@return The opened file, or the name of the file or directory.
 	'''
-	assert initialized
+	assert initialized is not False
 	if name is None:
 		if dir:
 			filename = packagename or pname
@@ -1069,7 +1083,7 @@ def remove_cache(name = None, dir = False, packagename = None):
 	@param packagename: Override the packagename.
 	@return None.
 	'''
-	assert initialized
+	assert initialized is not False
 	if dir:
 		shutil.rmtree(read_cache(name, False, True, False, packagename), ignore_errors = False)
 	else:
@@ -1086,7 +1100,7 @@ def write_log(name = None, packagename = None):
 	@param packagename: Override the packagename.
 	@return The logfile, opened in text append mode.
 	'''
-	assert initialized
+	assert initialized is not False
 	if not is_system:
 		return sys.stderr
 	if name is None:
@@ -1112,7 +1126,7 @@ def write_spool(name = None, text = True, dir = False, opened = True, packagenam
 	@param packagename: Override the packagename.
 	@return The opened file, or the name of the file or directory.
 	'''
-	assert initialized
+	assert initialized is not False
 	if name is None:
 		if dir:
 			filename = packagename or pname
@@ -1135,7 +1149,7 @@ def read_spool(name = None, text = True, dir = False, opened = True, packagename
 	@param packagename: Override the packagename.
 	@return The opened file, or the name of the file or directory.
 	'''
-	assert initialized
+	assert initialized is not False
 	if name is None:
 		if dir:
 			filename = packagename or pname
@@ -1155,7 +1169,7 @@ def remove_spool(name = None, dir = False, packagename = None):
 	@param packagename: Override the packagename.
 	@return None.
 	'''
-	assert initialized
+	assert initialized is not False
 	if name is None:
 		if dir:
 			filename = packagename or pname
@@ -1172,13 +1186,13 @@ def lock(name = None, info = '', packagename = None):
 	'''Acquire a lock.
 	@todo locks are currently not implemented.
 	'''
-	assert initialized
+	assert initialized is not False
 	# TODO
 
 def unlock(name = None, packagename = None):
 	'''Release a lock.
 	@todo locks are currently not implemented.
 	'''
-	assert initialized
+	assert initialized is not False
 	# TODO
 # }}}
