@@ -409,6 +409,7 @@ def option(name, help, short = None, multiple = False, optional = False, default
 	'''Register commandline argument.
 	@param name: Name of the option argument. Should not include the "--" prefix.
 	@param help: Help text when displaying the --help output.
+	@param short: Single byte string, which can be used as short option.
 	@param multiple: If True, this option may be specified multiple times
 		and the value will be a list of the arguments.
 	@param optional: If True, this option's argument may be omitted.
@@ -422,6 +423,11 @@ def option(name, help, short = None, multiple = False, optional = False, default
 		default to False, True.
 		This type is called to construct the value. It can
 		also be used as a callback.
+	@param module: Name of the module this option is a part of.
+	@param options: For internal use only.
+		(Variable to store the option in.)
+	@param option_order: For internal use only.
+		(Variable to store the option order in, for --help.)
 	'''
 	if options is None:
 		assert not initialized
@@ -578,6 +584,11 @@ def init(config = None, help = None, version = None, contact = None, packagename
 	--saveconfig, which can optionally have the filename to save to as a
 	parameter.
 	@param config: Configuration dict. Deprecated. Keep set to None.
+	@param help: Help text that is displayed when using --help;
+		parameter help follows this text.
+	@param version: Version of the program, as reported by --version.
+	@param contact: Contact informatino,
+		as reported by --help and --version.
 	@param packagename: The name of the program.  This is used as a default
 		for all other functions.  It has a default of the basename of
 		the program.
@@ -757,6 +768,9 @@ def module_get_config(modulename, extra = False): # {{{
 	implicitly with default settings.
 	@param modulename: Name of the module.  Must be identical to the name
 		that was passed to module_option().
+	@param extra: This function always returns the values of module options.
+		If this is True, it also returns a dict of bools, to indicate
+		whether the option was specified.
 	@return configuration dict, with the same format as the return value of
 		init().  This dict does not include the automatic module prefix
 		of the module options.
@@ -953,6 +967,7 @@ def read_data(name = None, text = True, dir = False, multiple = False, opened = 
 	@param name: Name of the data file.
 	@param text: Open as a text file if True (the default).
 	@param dir: Return a directory name if True, a file or filename if False (the default).
+	@param multiple: If True, option is allowed multiple times. Result will be a list.
 	@param opened: Open the file if True (the default), report the name if False.
 	@param packagename: Override the packagename.
 	@return The opened file, or the name of the file or directory.
